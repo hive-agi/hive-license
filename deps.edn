@@ -1,0 +1,33 @@
+{:paths ["src"]
+
+ :mvn/repos {"hive-gitea" {:url "https://gitea.hive-mcp.com/api/packages/hive-agi/maven"}}
+
+ ;; malli only. This lib is embedded in every proprietary addon it gates, so
+ ;; its dependency surface is part of its contract.
+ :deps {org.clojure/clojure {:mvn/version "1.12.1"}
+        metosin/malli {:mvn/version "0.20.1"}}
+
+ :aliases
+ {:test {:extra-paths ["test"]
+         :extra-deps {io.github.cognitect-labs/test-runner
+                      {:git/tag "v0.5.1" :git/sha "dfb30dd"}
+                      org.clojure/test.check {:mvn/version "1.1.1"}
+                      io.github.hive-agi/hive-test {:mvn/version "0.3.10"}
+                      io.github.hive-agi/hive-schemas {:mvn/version "0.1.10"}}
+         :main-opts ["-m" "cognitect.test-runner"]
+         :exec-fn cognitect.test-runner.api/test}
+
+  :build {:deps {io.github.clojure/tools.build {:mvn/version "0.10.9"}
+                 slipset/deps-deploy {:mvn/version "0.2.2"}}
+          :jvm-opts ["-Xmx1g"]
+          :ns-default build}
+
+  :nrepl {:extra-paths ["test"]
+          :extra-deps {org.clojure/test.check {:mvn/version "1.1.1"}
+                       io.github.hive-agi/hive-test {:mvn/version "0.3.10"}
+                       io.github.hive-agi/hive-schemas {:mvn/version "0.1.10"}
+                       nrepl/nrepl {:mvn/version "1.3.1"}
+                       cider/cider-nrepl {:mvn/version "0.50.2"}}
+          :main-opts ["-m" "nrepl.cmdline"
+                      "--middleware" "[cider.nrepl/cider-middleware]"
+                      "--port" "7931"]}}}

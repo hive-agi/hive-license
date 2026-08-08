@@ -1,0 +1,6 @@
+{:project-id "hive-license"
+ :parent "hive"
+ :description "Offline Ed25519 licence verification for proprietary hive addons. Malli License value object, key-id keyring (DIP), ordered rule-chain verdict, and key material derived from the signature so the check is load-bearing rather than a boolean gate."
+ :language :clojure
+ :tags ["licensing" "ed25519" "leaf-lib" "proprietary" "hive-addon"]
+ :carto {:source-roots ["src" "test"]}}
