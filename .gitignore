@@ -2,3 +2,6 @@
 /.cpcache
 /.lsp
 /local.deps.edn
+
+# clj-kondo analysis cache (machine-local, regenerated on lint)
+.clj-kondo/.cache/
