@@ -7,7 +7,8 @@
             [hive-license.crypto :as crypto]
             [hive-license.keyring :as keyring]
             [hive-license.schema :as schema]
-            [hive-license.verify :as verify]))
+            [hive-license.verify :as verify]
+            [hive-license.signer :as signer]))
 
 ;; Copyright (C) 2026 Pedro Gomes Branquinho (BuddhiLW) <pedrogbranquinho@gmail.com>
 ;;
@@ -15,11 +16,14 @@
 
 (defn issue
   "Sign `license` with PKCS#8 `private-b64`, returning a SignedLicense.
-   Server-side only — no shipped artifact carries a private key."
+   Server-side only — no shipped artifact carries a private key.
+
+   Signing goes through the installed ISigner, defaulting to this library's
+   own JDK adapter."
   [private-b64 license]
   (schema/check! schema/License license {:license-id (:license/id license)})
   {:signed/license license
-   :signed/signature (crypto/sign private-b64 (codec/canonical-bytes license))})
+   :signed/signature (signer/sign private-b64 (codec/canonical-bytes license))})
 
 (defn request
   "Assemble the VerifyRequest a verdict is computed from. Pure.

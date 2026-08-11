@@ -77,6 +77,28 @@
     (is (:license/valid?
          (verify/decide (req {:request/now "2026-08-31T23:59:59Z"}))))))
 
+(deftest issuer-signed-offline-grace-extends-the-local-deadline
+  (let [graced (lic/issue (:private kp)
+                          (assoc license :license/offline-grace-seconds 3600))]
+    (testing "the verifier performs no network IO and permits the signed window"
+      (is (:license/valid?
+           (verify/decide (req {:request/signed graced
+                                :request/now "2026-09-01T00:59:59Z"})))))
+    (testing "the grace endpoint is exclusive like contractual expiry"
+      (is (= :deny/expired
+             (:license/reason
+              (verify/decide (req {:request/signed graced
+                                   :request/now "2026-09-01T01:00:00Z"}))))))))
+
+(deftest offline-grace-is-signature-covered
+  (let [graced (lic/issue (:private kp)
+                          (assoc license :license/offline-grace-seconds 3600))
+        tampered (assoc-in graced
+                           [:signed/license :license/offline-grace-seconds]
+                           7200)]
+    (is (= :deny/signature-invalid
+           (:license/reason (verify/decide (req {:request/signed tampered})))))))
+
 (deftest rule-order-is-part-of-the-contract
   (testing "a malformed licence is refused before any signature work"
     (is (= :deny/malformed

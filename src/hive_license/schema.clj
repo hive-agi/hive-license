@@ -45,6 +45,10 @@
   "Opaque host identity the licence is locked to; nil means unlocked."
   [:maybe NonBlank])
 
+(def OfflineGraceSeconds
+  "Issuer-signed seconds of local use allowed after contractual expiry."
+  [:int {:min 0}])
+
 (def License
   "The signed payload. Every field is covered by the signature."
   [:map {:closed true}
@@ -54,6 +58,7 @@
    [:license/node-id NodeId]
    [:license/issued-at IsoInstant]
    [:license/expires-at IsoInstant]
+   [:license/offline-grace-seconds {:optional true} OfflineGraceSeconds]
    [:license/key-id KeyId]])
 
 (def Base64 [:re {:gen/elements ["aGVsbG8=" "d29ybGQ="]} #"^[A-Za-z0-9+/]*={0,2}$"])

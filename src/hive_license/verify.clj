@@ -5,8 +5,8 @@
    Extending the policy = registering another rule; `decide` never changes."
   (:require [malli.core :as m]
             [hive-license.codec :as codec]
-            [hive-license.crypto :as crypto]
-            [hive-license.schema :as schema]))
+            [hive-license.schema :as schema]
+            [hive-license.signer :as signer]))
 
 ;; Copyright (C) 2026 Pedro Gomes Branquinho (BuddhiLW) <pedrogbranquinho@gmail.com>
 ;;
@@ -37,7 +37,7 @@
     (rule-id [_] :signature-valid)
     (check [_ {:request/keys [signed public-key]}]
       (let [{:signed/keys [license signature]} signed]
-        (when-not (crypto/verify public-key (codec/canonical-bytes license) signature)
+        (when-not (signer/verify public-key (codec/canonical-bytes license) signature)
           :deny/signature-invalid)))))
 
 (def ^:private not-before
@@ -54,8 +54,11 @@
     (rule-id [_] :not-expired)
     (check [_ {:request/keys [signed now]}]
       (let [expires (instant (get-in signed [:signed/license :license/expires-at]))
+            grace   (get-in signed [:signed/license :license/offline-grace-seconds] 0)
+            deadline (try (.plusSeconds expires (long grace))
+                          (catch Exception _ expires))
             at      (instant now)]
-        (when (and expires at (not (.isBefore at expires)))
+        (when (and deadline at (not (.isBefore at deadline)))
           :deny/expired)))))
 
 (def ^:private node-matches

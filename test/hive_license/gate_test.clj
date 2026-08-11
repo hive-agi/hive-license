@@ -45,6 +45,13 @@
 (deftest an-expired-licence-refuses
   (is (= :deny/expired ((at "2027-01-01T00:00:00Z") carto-spec))))
 
+(deftest signed-offline-grace-is-honoured-without-phone-home
+  (let [graced (lic/issue (:private kp)
+                          (assoc license :license/offline-grace-seconds 3600))
+        g (gate/gate {:signed graced
+                      :now-fn (constantly "2026-09-01T00:30:00Z")})]
+    (is (nil? (g carto-spec)))))
+
 (deftest a-missing-licence-refuses
   (is (= :deny/malformed ((gate/gate {:signed nil}) carto-spec))))
 
