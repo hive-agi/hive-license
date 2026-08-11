@@ -1,5 +1,9 @@
 (ns hive-license.derive-test
   (:require [clojure.test :refer [deftest is testing]]
+            [clojure.test.check.clojure-test :refer [defspec]]
+            [clojure.test.check.generators :as gen]
+            [clojure.test.check.properties :as prop]
+            [hive-license.codec :as codec]
             [hive-license.core :as lic]
             [hive-license.crypto :as crypto]
             [hive-license.derive :as derive]))
@@ -53,3 +57,25 @@
           broken (str (subs sealed 0 (dec (count sealed)))
                       (if (= \A (last sealed)) "B" "A"))]
       (is (nil? (derive/unseal signed purpose broken))))))
+
+(deftest distinct-plaintexts-never-share-an-iv-under-one-licence
+  (testing "the AES-GCM footgun deterministic sealing must avoid: sealing two
+            different plaintexts under one (key, IV) breaks both"
+    (let [a (derive/seal signed purpose "{:alpha 0.62}")
+          b (derive/seal signed purpose "{:alpha 0.63}")
+          iv (fn [s] (vec (take 12 (codec/decode64 s))))]
+      (is (not= a b) "distinct plaintexts seal to distinct blobs")
+      (is (not= (iv a) (iv b))
+          "and to distinct IV prefixes, so no keystream is ever reused"))))
+
+(deftest the-sealed-blob-prepends-a-twelve-byte-iv
+  (testing "the IV travels with the ciphertext, so unseal needs no shared table"
+    (let [blob (derive/seal signed purpose secret)
+          raw (codec/decode64 blob)]
+      (is (< 12 (alength raw)) "a 12-byte IV prefix plus a non-empty GCM body")
+      (is (= secret (derive/unseal signed purpose blob))
+          "and the prefixed IV is what unseal reads back"))))
+
+(defspec unseal-inverts-seal-over-arbitrary-plaintext 200
+  (prop/for-all [s gen/string]
+    (= s (derive/unseal signed purpose (derive/seal signed purpose s)))))

@@ -27,30 +27,49 @@
           (codec/decode64 (:signed/signature signed))
           (codec/canonical-bytes (:signed/license signed))))
 
-(defn- iv-for ^bytes [^String purpose]
-  (java.util.Arrays/copyOf (sha256 (utf8 (str purpose "/iv"))) iv-length))
+(defn- synthetic-iv
+  "12-byte IV bound to the key, purpose and plaintext, so two distinct
+   plaintexts never share an IV under one licence (deterministic SIV): a
+   (key, IV) reuse across different plaintexts — catastrophic for AES-GCM —
+   cannot arise, while identical inputs still seal identically."
+  ^bytes [^bytes key-bytes ^String purpose ^bytes plaintext-bytes]
+  (java.util.Arrays/copyOf
+   (sha256 (utf8 "hive-license/iv/v2") key-bytes (utf8 purpose) plaintext-bytes)
+   iv-length))
 
-(defn- cipher [mode ^bytes key-bytes ^String purpose]
+(defn- cipher [mode ^bytes key-bytes ^bytes iv-bytes]
   (doto (javax.crypto.Cipher/getInstance "AES/GCM/NoPadding")
     (.init (int mode)
            (javax.crypto.spec.SecretKeySpec. key-bytes "AES")
-           (javax.crypto.spec.GCMParameterSpec. gcm-tag-bits (iv-for purpose)))))
+           (javax.crypto.spec.GCMParameterSpec. gcm-tag-bits iv-bytes))))
 
 (defn seal
-  "Base64 ciphertext of `plaintext` under the key derived for `purpose`.
-   Deterministic: the IV is derived from `purpose`, so sealing is reproducible."
+  "Base64 of (IV ‖ AES-GCM ciphertext) of `plaintext` under the key derived for
+   `purpose`. Deterministic: the IV is derived from the key, purpose and
+   plaintext, so sealing is reproducible and two distinct plaintexts never share
+   an IV under one licence."
   ^String [signed ^String purpose ^String plaintext]
-  (codec/encode64
-   (.doFinal (cipher javax.crypto.Cipher/ENCRYPT_MODE (derive-key signed purpose) purpose)
-             (utf8 plaintext))))
+  (let [key-bytes (derive-key signed purpose)
+        pt (utf8 plaintext)
+        iv (synthetic-iv key-bytes purpose pt)
+        ct (.doFinal (cipher javax.crypto.Cipher/ENCRYPT_MODE key-bytes iv) pt)
+        out (byte-array (+ iv-length (alength ct)))]
+    (System/arraycopy iv 0 out 0 iv-length)
+    (System/arraycopy ct 0 out iv-length (alength ct))
+    (codec/encode64 out)))
 
 (defn unseal
-  "Plaintext of base64 `ciphertext`, or nil when the licence does not derive
-   the key it was sealed under."
+  "Plaintext of base64 `ciphertext` (IV ‖ AES-GCM ciphertext), or nil when the
+   licence does not derive the key it was sealed under, the bytes were altered,
+   or the input is malformed."
   [signed ^String purpose ^String ciphertext]
   (try
-    (String. ^bytes (.doFinal (cipher javax.crypto.Cipher/DECRYPT_MODE
-                                      (derive-key signed purpose) purpose)
-                              (codec/decode64 ciphertext))
-             "UTF-8")
+    (let [raw (codec/decode64 ciphertext)]
+      (when (and raw (> (alength ^bytes raw) iv-length))
+        (let [iv (java.util.Arrays/copyOfRange ^bytes raw 0 iv-length)
+              ct (java.util.Arrays/copyOfRange ^bytes raw iv-length (alength ^bytes raw))]
+          (String. ^bytes (.doFinal (cipher javax.crypto.Cipher/DECRYPT_MODE
+                                             (derive-key signed purpose) iv)
+                                    ct)
+                   "UTF-8"))))
     (catch Exception _ nil)))
