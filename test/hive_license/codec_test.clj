@@ -2,7 +2,8 @@
   (:require [clojure.test :refer [deftest is testing]]
             [hive-schemas.test :as st]
             [hive-license.codec :as codec]
-            [hive-license.schema :as schema]))
+            [hive-license.schema :as schema]
+            [clojure.string :as str]))
 
 (st/deftrifecta-from-schema canonical-string
   hive-license.codec/canonical-string
@@ -51,3 +52,41 @@
 (deftest base64-rejects-garbage-without-throwing
   (is (nil? (codec/decode64 "not base64 !!!")))
   (is (nil? (codec/decode64 ""))))
+
+(def ^:private a-licence
+  {:license/id "x"
+   :license/customer-id "c"
+   :license/entitles #{"g:a" "g:b"}
+   :license/node-id nil
+   :license/issued-at "2026-01-01T00:00:00Z"
+   :license/expires-at "2026-02-01T00:00:00Z"
+   :license/key-id "k"})
+
+(deftest the-canonical-form-does-not-depend-on-the-callers-printer-settings
+  (testing "a licence has namespaced keys, so *print-namespace-maps* alone
+            rewrites it — and the signature is computed over these bytes.
+            A REPL binds that var to true and a worker thread does not, so a
+            licence issued in one and verified in the other would not verify,
+            and a constant sealed in one could never be unsealed in the other."
+    (let [pinned (codec/canonical-string a-licence)]
+      (doseq [nsm [true false]
+              readably [true false]
+              length [nil 2]
+              level [nil 1]]
+        (binding [*print-namespace-maps* nsm
+                  *print-readably* readably
+                  *print-length* length
+                  *print-level* level]
+          (is (= pinned (codec/canonical-string a-licence))
+              (str "printer settings changed the bytes a signature covers: "
+               {:namespace-maps nsm :readably readably
+                :length length :level level})))))))
+
+(deftest the-canonical-form-is-not-truncated-by-a-print-limit
+  (testing "*print-length* would silently drop entitlements from the bytes"
+    (let [wide (assoc a-licence :license/entitles
+                      (into #{} (map #(str "g:a" %)) (range 50)))
+          pinned (codec/canonical-string wide)]
+      (binding [*print-length* 3 *print-level* 1]
+        (is (= pinned (codec/canonical-string wide))))
+      (is (not (clojure.string/includes? pinned "..."))))))

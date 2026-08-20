@@ -21,9 +21,19 @@
     :else x))
 
 (defn canonical-string
-  "Deterministic textual form of `license`."
+  "Deterministic textual form of `license`.
+
+   Every printer var the reader-visible form depends on is bound here, so the
+   result is a function of the value alone and not of the thread that computed
+   it."
   [license]
-  (pr-str (canonical license)))
+  (binding [*print-namespace-maps* false
+            *print-readably* true
+            *print-dup* false
+            *print-meta* false
+            *print-length* nil
+            *print-level* nil]
+    (pr-str (canonical license))))
 
 (defn canonical-bytes
   "UTF-8 bytes a signature is computed over."
