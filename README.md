@@ -1,5 +1,14 @@
 # hive-license
 
+<!-- hive-badges -->
+
+[![Clojars Project](https://img.shields.io/clojars/v/io.github.hive-agi/hive-license.svg)](https://clojars.org/io.github.hive-agi/hive-license)
+[![cljdoc](https://cljdoc.org/badge/io.github.hive-agi/hive-license)](https://cljdoc.org/d/io.github.hive-agi/hive-license/CURRENT)
+[![release](https://github.com/hive-agi/hive-license/actions/workflows/release.yml/badge.svg)](https://github.com/hive-agi/hive-license/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
+<!-- /hive-badges -->
+
 Offline, tamper-evident software licensing for JVM Clojure: Ed25519-signed
 licences a shipped artifact can verify with **no network call**, plus
 license-locked sealing that ships a value as ciphertext only its licensee can
