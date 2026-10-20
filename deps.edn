@@ -8,8 +8,8 @@
  ;; code — signing stays on the JDK provider unless a host installs its own
  ;; signer, so a heavier stack is an option and never a dependency.
  :deps {org.clojure/clojure {:mvn/version "1.12.6"}
-        metosin/malli {:mvn/version "0.20.2"}
-        io.github.hive-agi/hive-spi {:mvn/version "1.4.4"}}
+        metosin/malli {:mvn/version "0.20.3"}
+        io.github.hive-agi/hive-spi {:mvn/version "1.4.9"}}
 
  :aliases
  {:test {:extra-paths ["test"]
@@ -25,7 +25,7 @@
                       ;; maps this repo wrote itself. journey-test drives the
                       ;; real mounter instead. The shipped dependency surface is
                       ;; unchanged.
-                      io.github.hive-agi/hive-addon {:mvn/version "1.1.3"}}
+                      io.github.hive-agi/hive-addon {:mvn/version "1.1.7"}}
          :main-opts ["-m" "cognitect.test-runner"]
          :exec-fn cognitect.test-runner.api/test}
 
